@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 							createdAt: userData.createdAt?.toDate(),
 						});
 					} else {
-						// Fallback for users created before Firestore integration
+						// Document doesn't exist yet (during account creation) or user created before Firestore integration
 						setUser({
 							id: firebaseUser.uid,
 							username: firebaseUser.displayName || "User",
@@ -85,8 +85,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 							email: firebaseUser.email || "",
 						});
 					}
-				} catch (error) {
-					console.error("Error fetching user data:", error);
+				} catch (error: any) {
+					// Handle permission errors gracefully (usually during account creation timing)
+					const isPermissionError =
+						error?.code === "permission-denied" ||
+						error?.message?.includes("Missing or insufficient permissions");
+
+					if (!isPermissionError) {
+						console.error("Error fetching user data:", error);
+					}
+
 					// Fallback user data
 					setUser({
 						id: firebaseUser.uid,

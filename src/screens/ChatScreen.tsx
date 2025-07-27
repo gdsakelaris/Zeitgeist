@@ -67,13 +67,25 @@ interface Message {
 
 interface ChatScreenProps {
 	navigation: any;
+	route?: {
+		params?: {
+			userId: string;
+			username: string;
+			isOwnPage: boolean;
+		};
+	};
 }
 
 const MESSAGE_BATCH_SIZE = 50;
 
-export default function ChatScreen({ navigation }: ChatScreenProps) {
+export default function ChatScreen({ navigation, route }: ChatScreenProps) {
+	// Get page parameters (if navigating to specific user page)
+	const pageUserId = route?.params?.userId;
+	const pageUsername = route?.params?.username;
+	const isOwnPage = route?.params?.isOwnPage ?? true;
+
 	// Analytics tracking
-	useAnalytics("ChatScreen");
+	useAnalytics(isOwnPage ? "MyPage" : "UserPage");
 
 	// State management
 	const [messages, setMessages] = useState<Message[]>([]);
@@ -88,6 +100,10 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 	// Hooks
 	const { user, logout } = useAuth();
 	const { isConnected, retryConnection } = useNetwork();
+
+	// Determine which user's page we're viewing
+	const currentPageUserId = pageUserId || user?.id;
+	const currentPageUsername = pageUsername || user?.username;
 
 	// Refs
 	const flatListRef = useRef<FlatList>(null);
@@ -130,12 +146,12 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 
 	// Setup message listener with improved error handling
 	useEffect(() => {
-		if (!user) return;
+		if (!user || !currentPageUserId) return;
 
 		try {
-			// Create query for recent messages
+			// Create query for messages from the specific user's page
 			const messagesQuery = query(
-				collection(db, "messages"),
+				collection(db, "userPages", currentPageUserId, "messages"),
 				orderBy("timestamp", "desc"),
 				limitToLast(MESSAGE_BATCH_SIZE)
 			);
@@ -202,6 +218,7 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 		}
 	}, [
 		user,
+		currentPageUserId,
 		isConnected,
 		isNearBottom,
 		retryConnection,
@@ -248,11 +265,16 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 
 	// Optimized send message function
 	const sendMessage = useCallback(async () => {
-		if (!isMessageValid || !user || sending || !isConnected) {
+		if (!isMessageValid || !user || sending || !isConnected || !isOwnPage) {
 			if (!isConnected) {
 				Alert.alert(
 					"No Connection",
 					"Please check your internet connection and try again."
+				);
+			} else if (!isOwnPage) {
+				Alert.alert(
+					"Cannot Post",
+					"You can only post messages on your own page."
 				);
 			}
 			return;
@@ -284,7 +306,7 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 		}
 
 		try {
-			await addDoc(collection(db, "messages"), {
+			await addDoc(collection(db, "userPages", user.id, "messages"), {
 				text: messageText,
 				username: user.username,
 				userId: user.id,
@@ -327,6 +349,7 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 		user,
 		sending,
 		isConnected,
+		isOwnPage,
 		newMessage,
 		scrollToBottom,
 		isNearBottom,
@@ -440,29 +463,64 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 					>
 						<View style={styles.avatar}>
 							<Text style={styles.avatarText}>
-								{user?.username?.charAt(0).toUpperCase()}
+								{currentPageUsername?.charAt(0).toUpperCase()}
 							</Text>
 						</View>
 						<View>
-							<Text style={styles.headerTitle}>Zeitgeist</Text>
+							<Text style={styles.headerTitle}>
+								{isOwnPage ? "My Page" : `${currentPageUsername}'s Page`}
+							</Text>
 							<Text style={styles.headerSubtitle}>
-								{isConnected ? `Welcome, ${user?.username}` : "Offline"}
+								{isConnected
+									? isOwnPage
+										? "Your personal message board"
+										: `Viewing ${currentPageUsername}'s messages`
+									: "Offline"}
 							</Text>
 						</View>
 					</TouchableOpacity>
-					<TouchableOpacity
-						onPress={handleLogout}
-						style={styles.logoutButton}
-						accessibilityRole="button"
-						accessibilityLabel="Logout"
-						accessibilityHint="Logout from your account"
-					>
-						<Ionicons
-							name="log-out-outline"
-							size={24}
-							color="#FF3B30"
-						/>
-					</TouchableOpacity>
+					<View style={styles.headerActions}>
+						{!isOwnPage && (
+							<TouchableOpacity
+								onPress={() => navigation.goBack()}
+								style={styles.headerActionButton}
+								accessibilityRole="button"
+								accessibilityLabel="Go back"
+							>
+								<Ionicons
+									name="arrow-back"
+									size={24}
+									color="#007AFF"
+								/>
+							</TouchableOpacity>
+						)}
+						<TouchableOpacity
+							onPress={() => navigation.navigate("UserSearch")}
+							style={styles.headerActionButton}
+							accessibilityRole="button"
+							accessibilityLabel="Search users"
+							accessibilityHint="Find other users to visit their pages"
+						>
+							<Ionicons
+								name="search"
+								size={24}
+								color="#007AFF"
+							/>
+						</TouchableOpacity>
+						<TouchableOpacity
+							onPress={handleLogout}
+							style={styles.headerActionButton}
+							accessibilityRole="button"
+							accessibilityLabel="Logout"
+							accessibilityHint="Logout from your account"
+						>
+							<Ionicons
+								name="log-out-outline"
+								size={24}
+								color="#FF3B30"
+							/>
+						</TouchableOpacity>
+					</View>
 				</View>
 
 				{/* Messages Container */}
@@ -470,7 +528,10 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 					{messages.length === 0 ? (
 						<TouchableWithoutFeedback onPress={dismissKeyboard}>
 							<View style={styles.emptyStateContainer}>
-								<EmptyState />
+								<EmptyState
+									isOwnPage={isOwnPage}
+									username={currentPageUsername}
+								/>
 							</View>
 						</TouchableWithoutFeedback>
 					) : (
@@ -518,17 +579,19 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 					)}
 				</View>
 
-				{/* Message Input */}
-				<MessageInput
-					value={newMessage}
-					onChangeText={setNewMessage}
-					onSend={sendMessage}
-					sending={sending}
-					isConnected={isConnected}
-					characterCount={characterCount}
-					ref={messageInputRef}
-					onFocus={handleInputFocus}
-				/>
+				{/* Message Input - Only show on own page */}
+				{isOwnPage && (
+					<MessageInput
+						value={newMessage}
+						onChangeText={setNewMessage}
+						onSend={sendMessage}
+						sending={sending}
+						isConnected={isConnected}
+						characterCount={characterCount}
+						ref={messageInputRef}
+						onFocus={handleInputFocus}
+					/>
+				)}
 			</KeyboardAvoidingView>
 
 			{/* Message Actions Modal */}
@@ -543,6 +606,7 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 						messageId={selectedMessage.id}
 						messageText={selectedMessage.text}
 						isOwnMessage={selectedMessage.userId === user?.id}
+						pageUserId={currentPageUserId || ""}
 						onClose={() => setShowActions(false)}
 						onRetry={
 							selectedMessage.status === "failed"
@@ -637,19 +701,27 @@ const MessageItem = React.memo(
 );
 
 // Empty State Component
-const EmptyState = React.memo(() => (
-	<View style={styles.emptyState}>
-		<Ionicons
-			name="chatbubbles-outline"
-			size={64}
-			color="#ccc"
-		/>
-		<Text style={styles.emptyStateText}>No messages yet</Text>
-		<Text style={styles.emptyStateSubtext}>
-			Be the first to start the conversation!
-		</Text>
-	</View>
-));
+const EmptyState = React.memo(
+	({ isOwnPage, username }: { isOwnPage: boolean; username?: string }) => (
+		<View style={styles.emptyState}>
+			<Ionicons
+				name="chatbubbles-outline"
+				size={64}
+				color="#ccc"
+			/>
+			<Text style={styles.emptyStateText}>
+				{isOwnPage
+					? "No messages yet"
+					: `${username} hasn't posted anything yet`}
+			</Text>
+			<Text style={styles.emptyStateSubtext}>
+				{isOwnPage
+					? "Share your thoughts with the world!"
+					: "Check back later for new posts"}
+			</Text>
+		</View>
+	)
+);
 
 // Message Input Component
 const MessageInput = React.memo(
@@ -813,8 +885,13 @@ const styles = StyleSheet.create({
 		color: "#666",
 		marginTop: 2,
 	},
-	logoutButton: {
+	headerActions: {
+		flexDirection: "row",
+		alignItems: "center",
+	},
+	headerActionButton: {
 		padding: 5,
+		marginLeft: 8,
 	},
 	messagesContainer: {
 		flex: 1,

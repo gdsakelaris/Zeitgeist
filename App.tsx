@@ -4,7 +4,9 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
 import AuthScreen from "./src/screens/AuthScreen";
+import HomeScreen from "./src/screens/HomeScreen";
 import ChatScreen from "./src/screens/ChatScreen";
+import UserSearchScreen from "./src/screens/UserSearchScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import PhoneVerificationScreen from "./src/screens/PhoneVerificationScreen";
 import { StatusBar } from "expo-status-bar";
@@ -12,7 +14,26 @@ import { ActivityIndicator, View, StyleSheet } from "react-native";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { NetworkProvider } from "./src/components/NetworkProvider";
 
-const Stack = createStackNavigator();
+// Define navigation parameter types
+export type RootStackParamList = {
+	Home: undefined;
+	UserSearch: undefined;
+	UserPage: {
+		userId: string;
+		username: string;
+		isOwnPage: boolean;
+	};
+	Profile: undefined;
+	Auth: undefined;
+	PhoneVerification: {
+		verificationId: string;
+		phoneNumber: string;
+		username: string;
+		password: string;
+	};
+};
+
+const Stack = createStackNavigator<RootStackParamList>();
 
 function AppNavigator() {
 	const { user, loading } = useAuth();
@@ -35,7 +56,15 @@ function AppNavigator() {
 					// User is authenticated
 					<>
 						<Stack.Screen
-							name="Chat"
+							name="Home"
+							component={HomeScreen}
+						/>
+						<Stack.Screen
+							name="UserSearch"
+							component={UserSearchScreen}
+						/>
+						<Stack.Screen
+							name="UserPage"
 							component={ChatScreen}
 						/>
 						<Stack.Screen

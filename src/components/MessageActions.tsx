@@ -38,6 +38,7 @@ interface MessageActionsProps {
 	messageId: string;
 	messageText: string;
 	isOwnMessage: boolean;
+	pageUserId: string; // ID of the user whose page this message is on
 	onClose: () => void;
 	onRetry?: () => void;
 	onDelete?: () => void;
@@ -48,6 +49,7 @@ export default function MessageActions({
 	messageId,
 	messageText,
 	isOwnMessage,
+	pageUserId,
 	onClose,
 	onRetry,
 	onDelete,
@@ -194,7 +196,9 @@ export default function MessageActions({
 					onPress: async () => {
 						try {
 							await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-							await deleteDoc(doc(db, "messages", messageId));
+							await deleteDoc(
+								doc(db, "userPages", pageUserId, "messages", messageId)
+							);
 							Analytics.logEvent("message_deleted", { messageId });
 							onDelete();
 							onClose();
@@ -257,8 +261,8 @@ export default function MessageActions({
 					</TouchableOpacity>
 				)}
 
-				{/* Delete Action for all messages */}
-				{onDelete && (
+				{/* Delete Action - only for own messages */}
+				{onDelete && isOwnMessage && (
 					<TouchableOpacity
 						style={styles.action}
 						onPress={handleDelete}
