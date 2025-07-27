@@ -70,7 +70,6 @@ interface ChatScreenProps {
 }
 
 const MESSAGE_BATCH_SIZE = 50;
-const AUTO_SCROLL_THRESHOLD = 100;
 
 export default function ChatScreen({ navigation }: ChatScreenProps) {
 	// Analytics tracking
@@ -79,13 +78,12 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 	// State management
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [newMessage, setNewMessage] = useState("");
-	const [loading, setLoading] = useState(true);
 	const [sending, setSending] = useState(false);
-	const [refreshing, setRefreshing] = useState(false);
 	const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
 	const [showActions, setShowActions] = useState(false);
 	const [isNearBottom, setIsNearBottom] = useState(true);
 	const [hasMoreMessages, setHasMoreMessages] = useState(false);
+	const [isUserScrolling, setIsUserScrolling] = useState(false);
 
 	// Hooks
 	const { user, logout } = useAuth();
@@ -96,6 +94,20 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 	const messageInputRef = useRef<TextInput>(null);
 	const unsubscribeRef = useRef<(() => void) | null>(null);
 	const scrollY = useRef(new Animated.Value(0)).current;
+	const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+	// Optimized scroll to bottom function
+	const scrollToBottom = useCallback(
+		(animated: boolean = true, dismissKeyboard: boolean = false) => {
+			if (flatListRef.current && messages.length > 0) {
+				flatListRef.current.scrollToEnd({ animated });
+			}
+			if (dismissKeyboard) {
+				Keyboard.dismiss();
+			}
+		},
+		[messages.length]
+	);
 
 	// Memoized values
 	const isMessageValid = useMemo(() => {
@@ -119,8 +131,6 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 	// Setup message listener with improved error handling
 	useEffect(() => {
 		if (!user) return;
-
-		setLoading(true);
 
 		try {
 			// Create query for recent messages
@@ -152,13 +162,12 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 					// Sort messages chronologically (oldest first for display)
 					const sortedMessages = messagesData.reverse();
 					setMessages(sortedMessages);
-					setLoading(false);
 
 					// Auto-scroll to bottom for new messages
-					if (isNearBottom && sortedMessages.length > 0) {
+					if (isNearBottom && sortedMessages.length > 0 && !isUserScrolling) {
 						setTimeout(() => {
 							scrollToBottom(false);
-						}, 100);
+						}, 300);
 					}
 
 					Analytics.logEvent("messages_loaded", {
@@ -171,7 +180,6 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 
 					if (!isConnected) {
 						// Handle offline gracefully
-						setLoading(false);
 						return;
 					}
 
@@ -183,7 +191,6 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 						},
 						"Failed to Load Messages"
 					);
-					setLoading(false);
 				}
 			);
 
@@ -192,9 +199,15 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 		} catch (error) {
 			console.error("Failed to setup message listener:", error);
 			ErrorHandler.logAndShow(error, "message_listener_setup");
-			setLoading(false);
 		}
-	}, [user, isConnected, isNearBottom, retryConnection]);
+	}, [
+		user,
+		isConnected,
+		isNearBottom,
+		retryConnection,
+		isUserScrolling,
+		scrollToBottom,
+	]);
 
 	// Cleanup listener on unmount
 	useEffect(() => {
@@ -202,28 +215,35 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 			if (unsubscribeRef.current) {
 				unsubscribeRef.current();
 			}
+			if (scrollTimeoutRef.current) {
+				clearTimeout(scrollTimeoutRef.current);
+			}
 		};
 	}, []);
-
-	// Optimized scroll to bottom function
-	const scrollToBottom = useCallback(
-		(animated: boolean = true, dismissKeyboard: boolean = false) => {
-			if (flatListRef.current && messages.length > 0) {
-				flatListRef.current.scrollToEnd({ animated });
-			}
-			if (dismissKeyboard) {
-				Keyboard.dismiss();
-			}
-		},
-		[messages.length]
-	);
 
 	// Handle scroll events for auto-scroll logic
 	const handleScroll = useCallback((event: any) => {
 		const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
 		const distanceFromBottom =
 			contentSize.height - (contentOffset.y + layoutMeasurement.height);
-		setIsNearBottom(distanceFromBottom < AUTO_SCROLL_THRESHOLD);
+
+		// Use a larger threshold for better UX
+		setIsNearBottom(distanceFromBottom < 150);
+	}, []);
+
+	// Handle scroll begin/end detection
+	const handleScrollBeginDrag = useCallback(() => {
+		setIsUserScrolling(true);
+		if (scrollTimeoutRef.current) {
+			clearTimeout(scrollTimeoutRef.current);
+		}
+	}, []);
+
+	const handleScrollEndDrag = useCallback(() => {
+		// Give user a moment after they stop scrolling before auto-scroll resumes
+		scrollTimeoutRef.current = setTimeout(() => {
+			setIsUserScrolling(false);
+		}, 1000);
 	}, []);
 
 	// Optimized send message function
@@ -258,8 +278,10 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 		// Haptic feedback
 		await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-		// Scroll to bottom immediately
-		setTimeout(() => scrollToBottom(), 50);
+		// Scroll to bottom only if user is near bottom and not actively scrolling
+		if (isNearBottom && !isUserScrolling) {
+			setTimeout(() => scrollToBottom(), 100);
+		}
 
 		try {
 			await addDoc(collection(db, "messages"), {
@@ -300,7 +322,16 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 		} finally {
 			setSending(false);
 		}
-	}, [isMessageValid, user, sending, isConnected, newMessage, scrollToBottom]);
+	}, [
+		isMessageValid,
+		user,
+		sending,
+		isConnected,
+		newMessage,
+		scrollToBottom,
+		isNearBottom,
+		isUserScrolling,
+	]);
 
 	// Handle message long press with haptics
 	const handleLongPress = useCallback(
@@ -337,20 +368,6 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 		[user?.id, messages, handleLongPress]
 	);
 
-	// Pull to refresh handler
-	const handleRefresh = useCallback(async () => {
-		setRefreshing(true);
-		try {
-			// Implement refresh logic here
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-			Analytics.logEvent("messages_refreshed");
-		} catch (error) {
-			console.error("Refresh failed:", error);
-		} finally {
-			setRefreshing(false);
-		}
-	}, []);
-
 	// Optimized key extractor
 	const keyExtractor = useCallback((item: Message) => item.id, []);
 
@@ -376,11 +393,11 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 
 	// Handle input focus
 	const handleInputFocus = useCallback(() => {
-		// Auto-scroll to bottom when input gains focus
-		if (isNearBottom && messages.length > 0) {
-			scrollToBottom(true);
+		// Auto-scroll to bottom when input gains focus, but only if user isn't actively scrolling
+		if (isNearBottom && messages.length > 0 && !isUserScrolling) {
+			setTimeout(() => scrollToBottom(true), 200);
 		}
-	}, [isNearBottom, messages.length, scrollToBottom]);
+	}, [isNearBottom, messages.length, scrollToBottom, isUserScrolling]);
 
 	// Handle retry sending failed message
 	const handleRetryMessage = useCallback(
@@ -403,19 +420,6 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 			messageId: selectedMessage?.id,
 		});
 	}, [selectedMessage?.id]);
-
-	// Loading state
-	if (loading) {
-		return (
-			<View style={[styles.container, styles.centered]}>
-				<ActivityIndicator
-					size="large"
-					color="#007AFF"
-				/>
-				<Text style={styles.loadingText}>Loading messages...</Text>
-			</View>
-		);
-	}
 
 	return (
 		<SafeAreaView
@@ -480,22 +484,17 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 								contentContainerStyle={styles.flatListContent}
 								showsVerticalScrollIndicator={false}
 								onScroll={handleScroll}
+								onScrollBeginDrag={handleScrollBeginDrag}
+								onScrollEndDrag={handleScrollEndDrag}
 								scrollEventThrottle={16}
-								removeClippedSubviews={true}
-								initialNumToRender={20}
-								maxToRenderPerBatch={10}
-								windowSize={21}
+								removeClippedSubviews={false}
+								initialNumToRender={15}
+								maxToRenderPerBatch={5}
+								windowSize={10}
+								updateCellsBatchingPeriod={100}
 								getItemLayout={undefined}
-								refreshControl={
-									<RefreshControl
-										refreshing={refreshing}
-										onRefresh={handleRefresh}
-										colors={["#007AFF"]}
-										tintColor="#007AFF"
-									/>
-								}
 								onContentSizeChange={() => {
-									if (isNearBottom) {
+									if (isNearBottom && !isUserScrolling) {
 										scrollToBottom(false);
 									}
 								}}
@@ -774,15 +773,6 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: "#f5f5f5",
-	},
-	centered: {
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	loadingText: {
-		marginTop: 10,
-		fontSize: 16,
-		color: "#666",
 	},
 	header: {
 		flexDirection: "row",
