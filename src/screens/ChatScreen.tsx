@@ -22,8 +22,8 @@ import {
 	AccessibilityInfo,
 	TouchableWithoutFeedback,
 	Keyboard,
+	KeyboardAvoidingView,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import {
 	collection,
 	addDoc,
@@ -376,12 +376,10 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 
 	// Handle input focus
 	const handleInputFocus = useCallback(() => {
-		// Small delay to ensure keyboard has started opening
-		setTimeout(() => {
-			if (isNearBottom && messages.length > 0) {
-				scrollToBottom(true);
-			}
-		}, 150);
+		// Auto-scroll to bottom when input gains focus
+		if (isNearBottom && messages.length > 0) {
+			scrollToBottom(true);
+		}
 	}, [isNearBottom, messages.length, scrollToBottom]);
 
 	// Handle retry sending failed message
@@ -446,87 +444,82 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 				</TouchableOpacity>
 			</View>
 
-			{/* Messages Container */}
-			<KeyboardAwareScrollView
-				style={styles.messagesContainer}
-				contentContainerStyle={{ flex: 1 }}
-				enableOnAndroid={true}
-				enableAutomaticScroll={true}
-				keyboardOpeningTime={250}
-				extraScrollHeight={Platform.OS === "ios" ? 20 : 60}
-				extraHeight={Platform.OS === "ios" ? 75 : 100}
-				showsVerticalScrollIndicator={false}
-				keyboardShouldPersistTaps="handled"
-				scrollEnabled={true}
-				nestedScrollEnabled={true}
+			{/* Main Content with Keyboard Handling */}
+			<KeyboardAvoidingView
+				style={styles.mainContent}
+				behavior={Platform.OS === "ios" ? "padding" : "height"}
+				keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
 			>
-				{messages.length === 0 ? (
-					<TouchableWithoutFeedback onPress={dismissKeyboard}>
-						<View style={styles.emptyStateContainer}>
-							<EmptyState />
-						</View>
-					</TouchableWithoutFeedback>
-				) : (
-					<TouchableWithoutFeedback onPress={dismissKeyboard}>
-						<FlatList
-							ref={flatListRef}
-							data={messages}
-							renderItem={renderMessage}
-							keyExtractor={keyExtractor}
-							contentContainerStyle={styles.flatListContent}
-							showsVerticalScrollIndicator={false}
-							onScroll={handleScroll}
-							scrollEventThrottle={16}
-							removeClippedSubviews={true}
-							initialNumToRender={20}
-							maxToRenderPerBatch={10}
-							windowSize={21}
-							getItemLayout={undefined}
-							refreshControl={
-								<RefreshControl
-									refreshing={refreshing}
-									onRefresh={handleRefresh}
-									colors={["#007AFF"]}
-									tintColor="#007AFF"
-								/>
-							}
-							onContentSizeChange={() => {
-								if (isNearBottom) {
-									scrollToBottom(false);
+				{/* Messages Container */}
+				<View style={styles.messagesContainer}>
+					{messages.length === 0 ? (
+						<TouchableWithoutFeedback onPress={dismissKeyboard}>
+							<View style={styles.emptyStateContainer}>
+								<EmptyState />
+							</View>
+						</TouchableWithoutFeedback>
+					) : (
+						<TouchableWithoutFeedback onPress={dismissKeyboard}>
+							<FlatList
+								ref={flatListRef}
+								data={messages}
+								renderItem={renderMessage}
+								keyExtractor={keyExtractor}
+								contentContainerStyle={styles.flatListContent}
+								showsVerticalScrollIndicator={false}
+								onScroll={handleScroll}
+								scrollEventThrottle={16}
+								removeClippedSubviews={true}
+								initialNumToRender={20}
+								maxToRenderPerBatch={10}
+								windowSize={21}
+								getItemLayout={undefined}
+								refreshControl={
+									<RefreshControl
+										refreshing={refreshing}
+										onRefresh={handleRefresh}
+										colors={["#007AFF"]}
+										tintColor="#007AFF"
+									/>
 								}
-							}}
-						/>
-					</TouchableWithoutFeedback>
-				)}
+								onContentSizeChange={() => {
+									if (isNearBottom) {
+										scrollToBottom(false);
+									}
+								}}
+							/>
+						</TouchableWithoutFeedback>
+					)}
 
-				{/* Scroll to bottom button */}
-				{!isNearBottom && (
-					<TouchableOpacity
-						style={styles.scrollToBottomButton}
-						onPress={() => scrollToBottom(false, true)}
-						accessibilityRole="button"
-						accessibilityLabel="Scroll to bottom"
-					>
-						<Ionicons
-							name="chevron-down"
-							size={20}
-							color="white"
-						/>
-					</TouchableOpacity>
-				)}
-			</KeyboardAwareScrollView>
+					{/* Scroll to bottom button */}
+					{!isNearBottom && (
+						<TouchableOpacity
+							style={styles.scrollToBottomButton}
+							onPress={() => scrollToBottom(false, true)}
+							accessibilityRole="button"
+							accessibilityLabel="Scroll to bottom"
+						>
+							<Ionicons
+								name="chevron-down"
+								size={20}
+								color="white"
+							/>
+						</TouchableOpacity>
+					)}
+				</View>
 
-			{/* Message Input */}
-			<MessageInput
-				value={newMessage}
-				onChangeText={setNewMessage}
-				onSend={sendMessage}
-				sending={sending}
-				isConnected={isConnected}
-				characterCount={characterCount}
-				ref={messageInputRef}
-				onFocus={handleInputFocus}
-			/>
+				{/* Message Input */}
+				<MessageInput
+					value={newMessage}
+					onChangeText={setNewMessage}
+					onSend={sendMessage}
+					sending={sending}
+					isConnected={isConnected}
+					characterCount={characterCount}
+					ref={messageInputRef}
+					onFocus={handleInputFocus}
+				/>
+			</KeyboardAvoidingView>
 
 			{/* Message Actions Modal */}
 			<Modal
@@ -965,5 +958,8 @@ const styles = StyleSheet.create({
 	inputContainer: {
 		flex: 1,
 		marginRight: 10,
+	},
+	mainContent: {
+		flex: 1,
 	},
 });
