@@ -9,7 +9,13 @@ import {
 	Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+	addDoc,
+	collection,
+	serverTimestamp,
+	doc,
+	deleteDoc,
+} from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useNetwork } from "./NetworkProvider";
@@ -34,6 +40,7 @@ interface MessageActionsProps {
 	isOwnMessage: boolean;
 	onClose: () => void;
 	onRetry?: () => void;
+	onDelete?: () => void;
 	messageStatus?: "sending" | "sent" | "failed";
 }
 
@@ -43,6 +50,7 @@ export default function MessageActions({
 	isOwnMessage,
 	onClose,
 	onRetry,
+	onDelete,
 	messageStatus = "sent",
 }: MessageActionsProps) {
 	const { user } = useAuth();
@@ -172,6 +180,34 @@ export default function MessageActions({
 		onClose();
 	};
 
+	const handleDelete = async () => {
+		if (!onDelete) return;
+
+		Alert.alert(
+			"Delete Message",
+			"Are you sure you want to delete this message?",
+			[
+				{ text: "Cancel", style: "cancel" },
+				{
+					text: "Delete",
+					onPress: async () => {
+						try {
+							await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+							await deleteDoc(doc(db, "messages", messageId));
+							Analytics.logEvent("message_deleted", { messageId });
+							onDelete();
+							onClose();
+						} catch (error) {
+							console.error("Error deleting message:", error);
+							const appError = ErrorHandler.handle(error, "delete_message");
+							ErrorHandler.showAlert(appError, "Failed to Delete Message");
+						}
+					},
+				},
+			]
+		);
+	};
+
 	return (
 		<View style={styles.container}>
 			<TouchableOpacity
@@ -216,6 +252,26 @@ export default function MessageActions({
 						/>
 						<Text style={[styles.actionText, styles.retryText]}>
 							Retry Sending
+						</Text>
+					</TouchableOpacity>
+				)}
+
+				{/* Delete Action for own messages */}
+				{isOwnMessage && onDelete && (
+					<TouchableOpacity
+						style={styles.action}
+						onPress={handleDelete}
+						accessibilityRole="button"
+						accessibilityLabel="Delete message"
+						accessibilityHint="Permanently deletes your message"
+					>
+						<Ionicons
+							name="trash-outline"
+							size={20}
+							color="#FF3B30"
+						/>
+						<Text style={[styles.actionText, styles.deleteText]}>
+							Delete Message
 						</Text>
 					</TouchableOpacity>
 				)}
@@ -319,6 +375,9 @@ const styles = StyleSheet.create({
 	},
 	retryText: {
 		color: "#007AFF",
+	},
+	deleteText: {
+		color: "#FF3B30",
 	},
 	disabledText: {
 		color: "#ccc",

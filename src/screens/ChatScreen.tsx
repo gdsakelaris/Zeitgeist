@@ -395,6 +395,15 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 		[messages, sendMessage]
 	);
 
+	// Handle delete message
+	const handleDeleteMessage = useCallback(() => {
+		// The message will be removed from Firestore by MessageActions
+		// The real-time listener will handle updating the local state
+		Analytics.logEvent("message_delete_initiated", {
+			messageId: selectedMessage?.id,
+		});
+	}, [selectedMessage?.id]);
+
 	// Loading state
 	if (loading) {
 		return (
@@ -540,6 +549,11 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 						onRetry={
 							selectedMessage.status === "failed"
 								? () => handleRetryMessage(selectedMessage.id)
+								: undefined
+						}
+						onDelete={
+							selectedMessage.userId === user?.id
+								? () => handleDeleteMessage()
 								: undefined
 						}
 						messageStatus={selectedMessage.status}

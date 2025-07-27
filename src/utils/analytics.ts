@@ -29,6 +29,7 @@ export const ANALYTICS_EVENTS = {
 	MESSAGE_SENT: "message_sent",
 	MESSAGE_COPIED: "message_copied",
 	MESSAGE_REPORTED: "message_reported",
+	MESSAGE_DELETED: "message_deleted",
 	CHAT_OPENED: "chat_opened",
 	MESSAGE_LONG_PRESSED: "message_long_pressed",
 

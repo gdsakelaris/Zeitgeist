@@ -58,7 +58,9 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [localLoading, setLocalLoading] = useState(false);
 	const [failedAttempts, setFailedAttempts] = useState(0);
-	const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+	const [validationErrors, setValidationErrors] = useState<ValidationError[]>(
+		[]
+	);
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -75,17 +77,39 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 
 	const phoneValidation = useMemo(() => {
 		if (!phoneNumber || isLogin) return { isValid: true, error: "" };
-		const sanitized = InputSanitizer.sanitizePhoneNumber(phoneNumber);
-		return InputSanitizer.validatePhoneNumber(sanitized);
+
+		// Extract digits for validation
+		const digits = phoneNumber.replace(/[^\d]/g, "");
+
+		// Check if we have enough digits for a complete US phone number
+		if (digits.length === 0) {
+			return { isValid: true, error: "" }; // Allow empty during editing
+		}
+
+		if (digits.length < 10) {
+			return { isValid: false, error: "Please enter a complete phone number" };
+		}
+
+		if (digits.length > 10) {
+			return { isValid: false, error: "Phone number is too long" };
+		}
+
+		return { isValid: true, error: "" };
 	}, [phoneNumber, isLogin]);
 
 	const passwordValidation = useMemo(() => {
 		if (!password) return { isValid: true, error: "" };
 		if (password.length < 6) {
-			return { isValid: false, error: "Password must be at least 6 characters" };
+			return {
+				isValid: false,
+				error: "Password must be at least 6 characters",
+			};
 		}
 		if (password.length > 128) {
-			return { isValid: false, error: "Password must be less than 128 characters" };
+			return {
+				isValid: false,
+				error: "Password must be less than 128 characters",
+			};
 		}
 		return { isValid: true, error: "" };
 	}, [password]);
@@ -98,20 +122,55 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 		return { isValid: true, error: "" };
 	}, [password, confirmPassword, isLogin]);
 
-	// Format phone number with input sanitization
-	const formatPhoneNumber = useCallback((text: string) => {
-		const sanitized = InputSanitizer.sanitizePhoneNumber(text);
-		const digits = sanitized.replace(/[^\d]/g, "");
+	// Format phone number with input sanitization and proper deletion handling
+	const formatPhoneNumber = useCallback(
+		(text: string, isDeleting: boolean = false) => {
+			// If user is deleting and field becomes empty, allow it
+			if (isDeleting && text.length === 0) {
+				return "";
+			}
 
-		// Format as (XXX) XXX-XXXX for display
-		if (digits.length <= 3) {
-			return digits;
-		} else if (digits.length <= 6) {
-			return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-		} else {
-			return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
-		}
-	}, []);
+			// Extract only digits from the input
+			const digits = text.replace(/[^\d]/g, "");
+
+			// If no digits and not deleting, return empty (don't auto-add +1)
+			if (digits.length === 0) {
+				return "";
+			}
+
+			// Format as (XXX) XXX-XXXX for display
+			if (digits.length <= 3) {
+				return digits;
+			} else if (digits.length <= 6) {
+				return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+			} else {
+				return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(
+					6,
+					10
+				)}`;
+			}
+		},
+		[]
+	);
+
+	// Handle phone number changes with proper deletion support
+	const handlePhoneChange = useCallback(
+		(text: string) => {
+			// Detect if user is deleting (new text is shorter than current)
+			const isDeleting = text.length < phoneNumber.length;
+
+			// If user is deleting and field becomes empty, allow it
+			if (isDeleting && text.length === 0) {
+				setPhoneNumber("");
+				return;
+			}
+
+			// Format the phone number
+			const formatted = formatPhoneNumber(text, isDeleting);
+			setPhoneNumber(formatted);
+		},
+		[phoneNumber.length, formatPhoneNumber]
+	);
 
 	// Comprehensive form validation
 	const validateForm = useCallback((): boolean => {
@@ -119,22 +178,34 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 
 		// Username validation
 		if (!usernameValidation.isValid) {
-			errors.push({ field: "username", message: usernameValidation.error || "Invalid username" });
+			errors.push({
+				field: "username",
+				message: usernameValidation.error || "Invalid username",
+			});
 		}
 
 		// Phone validation for signup
 		if (!isLogin && !phoneValidation.isValid) {
-			errors.push({ field: "phone", message: phoneValidation.error || "Invalid phone number" });
+			errors.push({
+				field: "phone",
+				message: phoneValidation.error || "Invalid phone number",
+			});
 		}
 
 		// Password validation
 		if (!passwordValidation.isValid) {
-			errors.push({ field: "password", message: passwordValidation.error || "Invalid password" });
+			errors.push({
+				field: "password",
+				message: passwordValidation.error || "Invalid password",
+			});
 		}
 
 		// Confirm password validation for signup
 		if (!isLogin && !confirmPasswordValidation.isValid) {
-			errors.push({ field: "confirmPassword", message: confirmPasswordValidation.error || "Passwords do not match" });
+			errors.push({
+				field: "confirmPassword",
+				message: confirmPasswordValidation.error || "Passwords do not match",
+			});
 		}
 
 		// Check for empty required fields
@@ -148,7 +219,10 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 			errors.push({ field: "phone", message: "Phone number is required" });
 		}
 		if (!isLogin && !confirmPassword.trim()) {
-			errors.push({ field: "confirmPassword", message: "Please confirm your password" });
+			errors.push({
+				field: "confirmPassword",
+				message: "Please confirm your password",
+			});
 		}
 
 		setValidationErrors(errors);
@@ -160,19 +234,36 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 		}
 
 		return true;
-	}, [username, phoneNumber, password, confirmPassword, isLogin, usernameValidation, phoneValidation, passwordValidation, confirmPasswordValidation]);
+	}, [
+		username,
+		phoneNumber,
+		password,
+		confirmPassword,
+		isLogin,
+		usernameValidation,
+		phoneValidation,
+		passwordValidation,
+		confirmPasswordValidation,
+	]);
 
 	// Handle login with rate limiting and improved security
 	const handleLogin = useCallback(async () => {
 		if (!isConnected) {
-			Alert.alert("No Connection", "Please check your internet connection and try again.");
+			Alert.alert(
+				"No Connection",
+				"Please check your internet connection and try again."
+			);
 			return;
 		}
 
 		// Rate limiting
 		const rateLimitKey = `login_${username.trim()}`;
-		if (RateLimit.checkLimit(rateLimitKey, 5, 300000)) { // 5 attempts per 5 minutes
-			Alert.alert("Too Many Attempts", "Too many login attempts. Please wait 5 minutes before trying again.");
+		if (RateLimit.checkLimit(rateLimitKey, 5, 300000)) {
+			// 5 attempts per 5 minutes
+			Alert.alert(
+				"Too Many Attempts",
+				"Too many login attempts. Please wait 5 minutes before trying again."
+			);
 			return;
 		}
 
@@ -184,7 +275,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 		try {
 			const sanitizedUsername = InputSanitizer.sanitizeUsername(username);
 			const result = await login(sanitizedUsername, password);
-			
+
 			if (!result.success) {
 				const newFailedAttempts = failedAttempts + 1;
 				setFailedAttempts(newFailedAttempts);
@@ -196,11 +287,15 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 				});
 
 				let alertTitle = "Login Failed";
-				let alertMessage = result.error || "Please check your username and password and try again.";
+				let alertMessage =
+					result.error ||
+					"Please check your username and password and try again.";
 
 				if (newFailedAttempts >= 3) {
 					alertTitle = "Multiple Failed Attempts";
-					alertMessage = `${result.error || "Incorrect credentials."}\n\nFor security, please double-check your username and password.`;
+					alertMessage = `${
+						result.error || "Incorrect credentials."
+					}\n\nFor security, please double-check your username and password.`;
 				}
 
 				Alert.alert(alertTitle, alertMessage, [
@@ -233,7 +328,10 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 	// Handle signup with enhanced validation
 	const handleSignup = useCallback(async () => {
 		if (!isConnected) {
-			Alert.alert("No Connection", "Please check your internet connection and try again.");
+			Alert.alert(
+				"No Connection",
+				"Please check your internet connection and try again."
+			);
 			return;
 		}
 
@@ -244,8 +342,11 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 
 		try {
 			const sanitizedUsername = InputSanitizer.sanitizeUsername(username);
-			const sanitizedPhone = InputSanitizer.sanitizePhoneNumber(phoneNumber);
-			
+
+			// Format phone number with +1 prefix for submission
+			const digits = phoneNumber.replace(/[^\d]/g, "");
+			const sanitizedPhone = `+1${digits}`;
+
 			Analytics.logEvent("signup_started", {
 				usernameLength: sanitizedUsername.length,
 			});
@@ -277,7 +378,15 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 		} finally {
 			setLocalLoading(false);
 		}
-	}, [isConnected, validateForm, username, phoneNumber, password, sendVerificationCode, navigation]);
+	}, [
+		isConnected,
+		validateForm,
+		username,
+		phoneNumber,
+		password,
+		sendVerificationCode,
+		navigation,
+	]);
 
 	// Handle form submission
 	const handleSubmit = useCallback(() => {
@@ -298,8 +407,10 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 		setPhoneNumber("");
 		setFailedAttempts(0);
 		setValidationErrors([]);
-		
-		Analytics.logEvent("auth_mode_switched", { to: isLogin ? "signup" : "login" });
+
+		Analytics.logEvent("auth_mode_switched", {
+			to: isLogin ? "signup" : "login",
+		});
 	}, [isLogin]);
 
 	// Handle input changes with sanitization
@@ -308,23 +419,32 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 		setUsername(sanitized);
 	}, []);
 
-	const handlePhoneChange = useCallback((text: string) => {
-		const formatted = formatPhoneNumber(text);
-		setPhoneNumber(formatted);
-	}, [formatPhoneNumber]);
-
 	// Check if form is valid for submit button
 	const isFormValid = useMemo(() => {
-		return usernameValidation.isValid && 
-			   passwordValidation.isValid && 
-			   (isLogin || (phoneValidation.isValid && confirmPasswordValidation.isValid)) &&
-			   username.trim() && 
-			   password.trim() &&
-			   (isLogin || (phoneNumber.trim() && confirmPassword.trim()));
-	}, [usernameValidation, passwordValidation, phoneValidation, confirmPasswordValidation, username, password, phoneNumber, confirmPassword, isLogin]);
+		return (
+			usernameValidation.isValid &&
+			passwordValidation.isValid &&
+			(isLogin ||
+				(phoneValidation.isValid && confirmPasswordValidation.isValid)) &&
+			username.trim() &&
+			password.trim() &&
+			(isLogin || (phoneNumber.trim() && confirmPassword.trim()))
+		);
+	}, [
+		usernameValidation,
+		passwordValidation,
+		phoneValidation,
+		confirmPasswordValidation,
+		username,
+		password,
+		phoneNumber,
+		confirmPassword,
+		isLogin,
+	]);
 
 	const isLoading = loading || localLoading;
-	const hasValidationError = (field: string) => validationErrors.some(error => error.field === field);
+	const hasValidationError = (field: string) =>
+		validationErrors.some((error) => error.field === field);
 
 	return (
 		<KeyboardAvoidingView
@@ -342,7 +462,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 				/>
 			)}
 
-			<ScrollView 
+			<ScrollView
 				contentContainerStyle={styles.content}
 				showsVerticalScrollIndicator={false}
 				keyboardShouldPersistTaps="handled"
@@ -355,8 +475,14 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 					</Text>
 					{!isConnected && (
 						<View style={styles.offlineWarning}>
-							<Ionicons name="cloud-offline-outline" size={16} color="#FF6B6B" />
-							<Text style={styles.offlineText}>Offline - Connect to continue</Text>
+							<Ionicons
+								name="cloud-offline-outline"
+								size={16}
+								color="#FF6B6B"
+							/>
+							<Text style={styles.offlineText}>
+								Offline - Connect to continue
+							</Text>
 						</View>
 					)}
 				</View>
@@ -381,7 +507,9 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 						accessibilityHint="Enter your unique username"
 					/>
 					{!usernameValidation.isValid && username && (
-						<Text style={styles.validationError}>{usernameValidation.error}</Text>
+						<Text style={styles.validationError}>
+							{usernameValidation.error}
+						</Text>
 					)}
 				</View>
 
@@ -405,7 +533,9 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 							accessibilityHint="Enter your phone number for verification"
 						/>
 						{!phoneValidation.isValid && phoneNumber && (
-							<Text style={styles.validationError}>{phoneValidation.error}</Text>
+							<Text style={styles.validationError}>
+								{phoneValidation.error}
+							</Text>
 						)}
 					</View>
 				)}
@@ -434,17 +564,21 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 							style={styles.passwordToggle}
 							onPress={() => setShowPassword(!showPassword)}
 							accessibilityRole="button"
-							accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+							accessibilityLabel={
+								showPassword ? "Hide password" : "Show password"
+							}
 						>
-							<Ionicons 
-								name={showPassword ? "eye-off-outline" : "eye-outline"} 
-								size={20} 
-								color="#666" 
+							<Ionicons
+								name={showPassword ? "eye-off-outline" : "eye-outline"}
+								size={20}
+								color="#666"
 							/>
 						</TouchableOpacity>
 					</View>
 					{!passwordValidation.isValid && password && (
-						<Text style={styles.validationError}>{passwordValidation.error}</Text>
+						<Text style={styles.validationError}>
+							{passwordValidation.error}
+						</Text>
 					)}
 					{failedAttempts > 0 && isLogin && (
 						<Text style={styles.errorText}>
@@ -463,7 +597,9 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 							<TextInput
 								style={[
 									styles.passwordInput,
-									!confirmPasswordValidation.isValid && confirmPassword && styles.inputError,
+									!confirmPasswordValidation.isValid &&
+										confirmPassword &&
+										styles.inputError,
 									hasValidationError("confirmPassword") && styles.inputError,
 								]}
 								placeholder="Confirm your password"
@@ -479,17 +615,21 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 								style={styles.passwordToggle}
 								onPress={() => setShowConfirmPassword(!showConfirmPassword)}
 								accessibilityRole="button"
-								accessibilityLabel={showConfirmPassword ? "Hide password" : "Show password"}
+								accessibilityLabel={
+									showConfirmPassword ? "Hide password" : "Show password"
+								}
 							>
-								<Ionicons 
-									name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
-									size={20} 
-									color="#666" 
+								<Ionicons
+									name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+									size={20}
+									color="#666"
 								/>
 							</TouchableOpacity>
 						</View>
 						{!confirmPasswordValidation.isValid && confirmPassword && (
-							<Text style={styles.validationError}>{confirmPasswordValidation.error}</Text>
+							<Text style={styles.validationError}>
+								{confirmPasswordValidation.error}
+							</Text>
 						)}
 					</View>
 				)}
@@ -497,14 +637,17 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 				{/* Submit Button */}
 				<TouchableOpacity
 					style={[
-						styles.button, 
-						(isLoading || !isConnected || !isFormValid) && styles.buttonDisabled
+						styles.button,
+						(isLoading || !isConnected || !isFormValid) &&
+							styles.buttonDisabled,
 					]}
 					onPress={handleSubmit}
 					disabled={isLoading || !isConnected || !isFormValid}
 					accessibilityRole="button"
 					accessibilityLabel={isLogin ? "Login" : "Create account"}
-					accessibilityState={{ disabled: isLoading || !isConnected || !isFormValid }}
+					accessibilityState={{
+						disabled: isLoading || !isConnected || !isFormValid,
+					}}
 				>
 					{isLoading ? (
 						<ActivityIndicator color="white" />
@@ -521,7 +664,9 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 					onPress={toggleAuthMode}
 					disabled={isLoading}
 					accessibilityRole="button"
-					accessibilityLabel={isLogin ? "Switch to create account" : "Switch to login"}
+					accessibilityLabel={
+						isLogin ? "Switch to create account" : "Switch to login"
+					}
 				>
 					<Text style={styles.switchText}>
 						{isLogin
@@ -542,7 +687,8 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 							<>
 								📱 <Text style={styles.boldText}>Phone Verification:</Text>{" "}
 								We'll send you a verification code to confirm your phone number
-								during signup.{"\n"}This is a one-time process for account security.
+								during signup.{"\n"}This is a one-time process for account
+								security.
 							</>
 						)}
 					</Text>

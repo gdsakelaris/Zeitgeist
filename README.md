@@ -18,7 +18,8 @@ A modern, feature-rich React Native chat application built with Expo, Firebase, 
 
 - **Optimized Real-time Messaging** with Firestore
 - **Message Status Indicators** (sending, sent, failed)
-- **Message Actions** (copy, report, retry)
+- **Message Actions** (copy, report, retry, delete)
+- **Message Deletion** for users' own messages with confirmation
 - **Pull-to-Refresh** functionality
 - **Auto-scroll with Smart Detection** for new messages
 - **Character Count & Validation** (500 character limit)
@@ -109,11 +110,14 @@ A modern, feature-rich React Native chat application built with Expo, Firebase, 
    rules_version = '2';
    service cloud.firestore {
      match /databases/{database}/documents {
-       // Messages: authenticated users can read/write
+       // Messages: authenticated users can read/write, authors can delete
        match /messages/{messageId} {
          allow read, write: if request.auth != null
            && request.auth.uid != null
            && resource.data.text.size() <= 500;
+         allow delete: if request.auth != null
+           && request.auth.uid != null
+           && request.auth.uid == resource.data.userId;
        }
 
        // Users: can only edit own profile
@@ -284,7 +288,8 @@ src/
 
 - ✅ Real-time messaging with optimized performance
 - ✅ Phone authentication with SMS verification
-- ✅ Message actions (copy, report, retry)
+- ✅ Message actions (copy, report, retry, delete)
+- ✅ Message deletion for own messages with confirmation
 - ✅ Offline support with graceful degradation
 - ✅ Input validation and sanitization
 - ✅ Error boundaries with recovery options
