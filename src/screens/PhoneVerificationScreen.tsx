@@ -8,6 +8,7 @@ import {
 	SafeAreaView,
 	Alert,
 	ActivityIndicator,
+	ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
@@ -122,7 +123,7 @@ export default function PhoneVerificationScreen({ route, navigation }: any) {
 				</TouchableOpacity>
 			</View>
 
-			<View style={styles.content}>
+			<ScrollView contentContainerStyle={styles.content}>
 				<View style={styles.iconContainer}>
 					<Ionicons
 						name="phone-portrait-outline"
@@ -200,7 +201,7 @@ export default function PhoneVerificationScreen({ route, navigation }: any) {
 						login.
 					</Text>
 				</View>
-			</View>
+			</ScrollView>
 		</SafeAreaView>
 	);
 }
@@ -215,9 +216,10 @@ const styles = StyleSheet.create({
 		paddingVertical: 15,
 	},
 	content: {
-		flex: 1,
+		flexGrow: 1,
 		paddingHorizontal: 30,
 		justifyContent: "center",
+		paddingVertical: 20,
 	},
 	iconContainer: {
 		alignItems: "center",

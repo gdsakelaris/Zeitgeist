@@ -9,6 +9,7 @@ import {
 	KeyboardAvoidingView,
 	Platform,
 	ActivityIndicator,
+	ScrollView,
 } from "react-native";
 import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import { initializeApp, getApps } from "firebase/app";
@@ -233,7 +234,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 				/>
 			)}
 
-			<View style={styles.content}>
+			<ScrollView contentContainerStyle={styles.content}>
 				<Text style={styles.title}>Zeitgeist</Text>
 				<Text style={styles.subtitle}>
 					{isLogin ? "Welcome back" : "Join the conversation"}
@@ -351,7 +352,7 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
 						)}
 					</Text>
 				</View>
-			</View>
+			</ScrollView>
 		</KeyboardAvoidingView>
 	);
 }
@@ -362,9 +363,10 @@ const styles = StyleSheet.create({
 		backgroundColor: "#f5f5f5",
 	},
 	content: {
-		flex: 1,
+		flexGrow: 1,
 		justifyContent: "center",
 		paddingHorizontal: 30,
+		paddingVertical: 20,
 	},
 	title: {
 		fontSize: 32,

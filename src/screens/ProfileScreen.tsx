@@ -8,6 +8,7 @@ import {
 	SafeAreaView,
 	Alert,
 	ActivityIndicator,
+	ScrollView,
 } from "react-native";
 import { updateProfile, updatePassword } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
@@ -122,7 +123,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 				<View style={{ width: 24 }} />
 			</View>
 
-			<View style={styles.content}>
+			<ScrollView contentContainerStyle={styles.content}>
 				<View style={styles.avatarSection}>
 					<View style={styles.largeAvatar}>
 						<Text style={styles.largeAvatarText}>
@@ -240,7 +241,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 						© 2024 Zeitgeist. All rights reserved.
 					</Text>
 				</View>
-			</View>
+			</ScrollView>
 		</SafeAreaView>
 	);
 }
@@ -266,7 +267,7 @@ const styles = StyleSheet.create({
 		color: "#333",
 	},
 	content: {
-		flex: 1,
+		flexGrow: 1,
 		padding: 20,
 	},
 	avatarSection: {

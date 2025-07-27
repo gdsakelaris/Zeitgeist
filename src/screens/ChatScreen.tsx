@@ -88,7 +88,20 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 	}, [user]);
 
 	const sendMessage = async () => {
-		if (!newMessage.trim() || !user || sending) return;
+		if (!newMessage.trim() || !user || sending) {
+			console.log("Send message blocked:", {
+				hasMessage: !!newMessage.trim(),
+				hasUser: !!user,
+				isSending: sending,
+			});
+			return;
+		}
+
+		console.log("Attempting to send message:", {
+			text: newMessage.trim(),
+			username: user.username,
+			userId: user.id,
+		});
 
 		setSending(true);
 		try {
@@ -99,10 +112,14 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 				timestamp: serverTimestamp(),
 			});
 
+			console.log("Message sent successfully!");
 			setNewMessage("");
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Error sending message:", error);
-			Alert.alert("Error", "Failed to send message. Please try again.");
+			Alert.alert(
+				"Error",
+				`Failed to send message: ${error.message}\n\nPlease check your Firestore security rules.`
+			);
 		} finally {
 			setSending(false);
 		}
@@ -159,7 +176,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 	}
 
 	return (
-		<SafeAreaView style={styles.container}>
+		<View style={styles.container}>
 			<View style={styles.header}>
 				<TouchableOpacity
 					onPress={() => navigation.navigate("Profile")}
@@ -187,34 +204,43 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 				</TouchableOpacity>
 			</View>
 
-			{messages.length === 0 ? (
-				<View style={styles.emptyState}>
-					<Ionicons
-						name="chatbubbles-outline"
-						size={64}
-						color="#ccc"
+			<View style={styles.messagesContainer}>
+				{messages.length === 0 ? (
+					<View style={styles.emptyState}>
+						<Ionicons
+							name="chatbubbles-outline"
+							size={64}
+							color="#ccc"
+						/>
+						<Text style={styles.emptyStateText}>No messages yet</Text>
+						<Text style={styles.emptyStateSubtext}>
+							Be the first to start the conversation!
+						</Text>
+					</View>
+				) : (
+					<FlatList
+						ref={flatListRef}
+						data={messages}
+						renderItem={renderMessage}
+						keyExtractor={(item) => item.id}
+						contentContainerStyle={styles.flatListContent}
+						showsVerticalScrollIndicator={true}
+						scrollEnabled={true}
+						removeClippedSubviews={false}
+						initialNumToRender={20}
+						maxToRenderPerBatch={10}
+						windowSize={10}
+						getItemLayout={undefined}
+						onContentSizeChange={() => {
+							if (messages.length > 0) {
+								flatListRef.current?.scrollToEnd({ animated: false });
+							}
+						}}
 					/>
-					<Text style={styles.emptyStateText}>No messages yet</Text>
-					<Text style={styles.emptyStateSubtext}>
-						Be the first to start the conversation!
-					</Text>
-				</View>
-			) : (
-				<FlatList
-					ref={flatListRef}
-					data={messages}
-					renderItem={renderMessage}
-					keyExtractor={(item) => item.id}
-					style={styles.messagesList}
-					contentContainerStyle={styles.messagesContainer}
-					showsVerticalScrollIndicator={false}
-				/>
-			)}
+				)}
+			</View>
 
-			<KeyboardAvoidingView
-				behavior={Platform.OS === "ios" ? "padding" : "height"}
-				style={styles.inputContainer}
-			>
+			<View style={styles.inputSection}>
 				<View style={styles.inputRow}>
 					<TextInput
 						style={styles.textInput}
@@ -247,7 +273,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 						)}
 					</TouchableOpacity>
 				</View>
-			</KeyboardAvoidingView>
+			</View>
 
 			<Modal
 				visible={showActions}
@@ -264,7 +290,7 @@ export default function ChatScreen({ navigation }: { navigation: any }) {
 					/>
 				)}
 			</Modal>
-		</SafeAreaView>
+		</View>
 	);
 }
 
@@ -272,6 +298,7 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: "#f5f5f5",
+		paddingTop: Platform.OS === "ios" ? 44 : 0, // StatusBar height
 	},
 	centered: {
 		justifyContent: "center",
@@ -342,11 +369,15 @@ const styles = StyleSheet.create({
 		marginTop: 5,
 		textAlign: "center",
 	},
-	messagesList: {
-		flex: 1,
-	},
 	messagesContainer: {
-		padding: 15,
+		flex: 1,
+		backgroundColor: "#f5f5f5",
+	},
+	flatListContent: {
+		paddingHorizontal: 15,
+		paddingTop: 15,
+		paddingBottom: 15,
+		flexGrow: 1,
 	},
 	messageContainer: {
 		backgroundColor: "white",
@@ -388,14 +419,14 @@ const styles = StyleSheet.create({
 	ownTimestamp: {
 		color: "rgba(255, 255, 255, 0.7)",
 	},
-	inputContainer: {
+	inputSection: {
 		backgroundColor: "white",
 		borderTopWidth: 1,
 		borderTopColor: "#e0e0e0",
+		padding: 15,
 	},
 	inputRow: {
 		flexDirection: "row",
-		padding: 15,
 		alignItems: "flex-end",
 	},
 	textInput: {

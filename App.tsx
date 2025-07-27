@@ -1,6 +1,7 @@
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
 import AuthScreen from "./src/screens/AuthScreen";
 import ChatScreen from "./src/screens/ChatScreen";
@@ -71,7 +72,9 @@ export default function App() {
 	return (
 		<AuthProvider>
 			<StatusBar style="auto" />
-			<AppNavigator />
+			<SafeAreaProvider>
+				<AppNavigator />
+			</SafeAreaProvider>
 		</AuthProvider>
 	);
 }
