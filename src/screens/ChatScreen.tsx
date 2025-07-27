@@ -12,7 +12,6 @@ import {
 	TouchableOpacity,
 	FlatList,
 	StyleSheet,
-	SafeAreaView,
 	Platform,
 	Alert,
 	ActivityIndicator,
@@ -22,8 +21,8 @@ import {
 	AccessibilityInfo,
 	TouchableWithoutFeedback,
 	Keyboard,
-	KeyboardAvoidingView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
 	collection,
 	addDoc,
@@ -409,7 +408,10 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 	}
 
 	return (
-		<SafeAreaView style={styles.container}>
+		<SafeAreaView
+			style={styles.container}
+			edges={["top"]}
+		>
 			{/* Header */}
 			<View style={styles.header}>
 				<TouchableOpacity
@@ -431,95 +433,89 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 					</View>
 				</TouchableOpacity>
 				<TouchableOpacity
-					onPress={() => navigation.navigate("Profile")}
-					style={styles.settingsButton}
+					onPress={handleLogout}
+					style={styles.logoutButton}
 					accessibilityRole="button"
-					accessibilityLabel="Settings"
+					accessibilityLabel="Logout"
+					accessibilityHint="Logout from your account"
 				>
 					<Ionicons
-						name="settings-outline"
+						name="log-out-outline"
 						size={24}
-						color="#007AFF"
+						color="#FF3B30"
 					/>
 				</TouchableOpacity>
 			</View>
 
-			{/* Main Content with Keyboard Handling */}
-			<KeyboardAvoidingView
-				style={styles.mainContent}
-				behavior={Platform.OS === "ios" ? "padding" : "height"}
-				keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
-			>
-				{/* Messages Container */}
-				<View style={styles.messagesContainer}>
-					{messages.length === 0 ? (
-						<TouchableWithoutFeedback onPress={dismissKeyboard}>
-							<View style={styles.emptyStateContainer}>
-								<EmptyState />
-							</View>
-						</TouchableWithoutFeedback>
-					) : (
-						<TouchableWithoutFeedback onPress={dismissKeyboard}>
-							<FlatList
-								ref={flatListRef}
-								data={messages}
-								renderItem={renderMessage}
-								keyExtractor={keyExtractor}
-								contentContainerStyle={styles.flatListContent}
-								showsVerticalScrollIndicator={false}
-								onScroll={handleScroll}
-								scrollEventThrottle={16}
-								removeClippedSubviews={true}
-								initialNumToRender={20}
-								maxToRenderPerBatch={10}
-								windowSize={21}
-								getItemLayout={undefined}
-								refreshControl={
-									<RefreshControl
-										refreshing={refreshing}
-										onRefresh={handleRefresh}
-										colors={["#007AFF"]}
-										tintColor="#007AFF"
-									/>
+			{/* Messages Container */}
+			<View style={styles.messagesContainer}>
+				{messages.length === 0 ? (
+					<TouchableWithoutFeedback onPress={dismissKeyboard}>
+						<View style={styles.emptyStateContainer}>
+							<EmptyState />
+						</View>
+					</TouchableWithoutFeedback>
+				) : (
+					<TouchableWithoutFeedback onPress={dismissKeyboard}>
+						<FlatList
+							ref={flatListRef}
+							data={messages}
+							renderItem={renderMessage}
+							keyExtractor={keyExtractor}
+							contentContainerStyle={styles.flatListContent}
+							showsVerticalScrollIndicator={false}
+							onScroll={handleScroll}
+							scrollEventThrottle={16}
+							removeClippedSubviews={true}
+							initialNumToRender={20}
+							maxToRenderPerBatch={10}
+							windowSize={21}
+							getItemLayout={undefined}
+							refreshControl={
+								<RefreshControl
+									refreshing={refreshing}
+									onRefresh={handleRefresh}
+									colors={["#007AFF"]}
+									tintColor="#007AFF"
+								/>
+							}
+							onContentSizeChange={() => {
+								if (isNearBottom) {
+									scrollToBottom(false);
 								}
-								onContentSizeChange={() => {
-									if (isNearBottom) {
-										scrollToBottom(false);
-									}
-								}}
-							/>
-						</TouchableWithoutFeedback>
-					)}
+							}}
+						/>
+					</TouchableWithoutFeedback>
+				)}
 
-					{/* Scroll to bottom button */}
-					{!isNearBottom && (
-						<TouchableOpacity
-							style={styles.scrollToBottomButton}
-							onPress={() => scrollToBottom(false, true)}
-							accessibilityRole="button"
-							accessibilityLabel="Scroll to bottom"
-						>
-							<Ionicons
-								name="chevron-down"
-								size={20}
-								color="white"
-							/>
-						</TouchableOpacity>
-					)}
-				</View>
+				{/* Scroll to bottom button */}
+				{!isNearBottom && (
+					<TouchableOpacity
+						style={styles.scrollToBottomButton}
+						onPress={() => scrollToBottom(false, true)}
+						accessibilityRole="button"
+						accessibilityLabel="Scroll to bottom"
+					>
+						<Ionicons
+							name="chevron-down"
+							size={20}
+							color="white"
+						/>
+					</TouchableOpacity>
+				)}
+			</View>
 
-				{/* Message Input */}
-				<MessageInput
-					value={newMessage}
-					onChangeText={setNewMessage}
-					onSend={sendMessage}
-					sending={sending}
-					isConnected={isConnected}
-					characterCount={characterCount}
-					ref={messageInputRef}
-					onFocus={handleInputFocus}
-				/>
-			</KeyboardAvoidingView>
+			{/* Message Input */}
+			<MessageInput
+				value={newMessage}
+				onChangeText={setNewMessage}
+				onSend={sendMessage}
+				sending={sending}
+				isConnected={isConnected}
+				characterCount={characterCount}
+				ref={messageInputRef}
+				onFocus={handleInputFocus}
+			/>
 
 			{/* Message Actions Modal */}
 			<Modal
@@ -811,7 +807,7 @@ const styles = StyleSheet.create({
 		color: "#666",
 		marginTop: 2,
 	},
-	settingsButton: {
+	logoutButton: {
 		padding: 5,
 	},
 	messagesContainer: {
@@ -913,9 +909,9 @@ const styles = StyleSheet.create({
 		backgroundColor: "white",
 		borderTopWidth: 1,
 		borderTopColor: "#e0e0e0",
-		padding: 15,
-		paddingBottom: Platform.OS === "ios" ? 34 : 15,
-		minHeight: Platform.OS === "ios" ? 88 : 68,
+		paddingHorizontal: 15,
+		paddingTop: 10,
+		paddingBottom: Platform.OS === "ios" ? 0 : 10,
 		elevation: 8,
 		shadowColor: "#000",
 		shadowOffset: { width: 0, height: -2 },
@@ -958,8 +954,5 @@ const styles = StyleSheet.create({
 	inputContainer: {
 		flex: 1,
 		marginRight: 10,
-	},
-	mainContent: {
-		flex: 1,
 	},
 });

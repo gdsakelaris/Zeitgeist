@@ -12,14 +12,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function ProfileScreen({ navigation }: { navigation: any }) {
-	const { user, logout } = useAuth();
-
-	const handleLogout = () => {
-		Alert.alert("Logout", "Are you sure you want to logout?", [
-			{ text: "Cancel", style: "cancel" },
-			{ text: "Logout", style: "destructive", onPress: logout },
-		]);
-	};
+	const { user } = useAuth();
 
 	const maskPhoneNumber = (phone: string) => {
 		// Show only last 4 digits: +1 (***) ***-1234
@@ -73,24 +66,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 						</Text>
 					</View>
 				</View>
-				<View style={styles.section}>
-					<Text style={styles.sectionTitle}>Account Actions</Text>
-					<TouchableOpacity
-						style={[styles.button, styles.dangerButton]}
-						onPress={handleLogout}
-					>
-						<Ionicons
-							name="log-out-outline"
-							size={20}
-							color="#FF3B30"
-							style={styles.buttonIcon}
-						/>
-						<Text style={[styles.buttonText, styles.dangerButtonText]}>
-							Logout
-						</Text>
-					</TouchableOpacity>
-				</View>
-
 				<View style={styles.footer}>
 					<Text style={styles.versionText}>Zeitgeist v1.0.0</Text>
 					<Text style={styles.copyrightText}>
