@@ -185,11 +185,12 @@ export default function MessageActions({
 
 		Alert.alert(
 			"Delete Message",
-			"Are you sure you want to delete this message?",
+			"Are you sure you want to delete this message? This action cannot be undone.",
 			[
 				{ text: "Cancel", style: "cancel" },
 				{
 					text: "Delete",
+					style: "destructive",
 					onPress: async () => {
 						try {
 							await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -256,14 +257,14 @@ export default function MessageActions({
 					</TouchableOpacity>
 				)}
 
-				{/* Delete Action for own messages */}
-				{isOwnMessage && onDelete && (
+				{/* Delete Action for all messages */}
+				{onDelete && (
 					<TouchableOpacity
 						style={styles.action}
 						onPress={handleDelete}
 						accessibilityRole="button"
 						accessibilityLabel="Delete message"
-						accessibilityHint="Permanently deletes your message"
+						accessibilityHint="Permanently deletes this message"
 					>
 						<Ionicons
 							name="trash-outline"

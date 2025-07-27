@@ -351,9 +351,11 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 		({ item, index }: { item: Message; index: number }) => {
 			const isOwnMessage = item.userId === user?.id;
 			const isLastMessage = index === messages.length - 1;
+			// Show username on all own messages, and for other users when they're first in a sequence
 			const showUsername =
-				!isOwnMessage &&
-				(index === 0 || messages[index - 1]?.userId !== item.userId);
+				isOwnMessage ||
+				(!isOwnMessage &&
+					(index === 0 || messages[index - 1]?.userId !== item.userId));
 
 			return (
 				<MessageItem
@@ -550,11 +552,7 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 								? () => handleRetryMessage(selectedMessage.id)
 								: undefined
 						}
-						onDelete={
-							selectedMessage.userId === user?.id
-								? () => handleDeleteMessage()
-								: undefined
-						}
+						onDelete={() => handleDeleteMessage()}
 						messageStatus={selectedMessage.status}
 					/>
 				)}

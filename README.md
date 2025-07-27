@@ -110,29 +110,54 @@ A modern, feature-rich React Native chat application built with Expo, Firebase, 
    rules_version = '2';
    service cloud.firestore {
      match /databases/{database}/documents {
-       // Messages: authenticated users can read/write, authors can delete
-       match /messages/{messageId} {
-         allow read, write: if request.auth != null
-           && request.auth.uid != null
-           && resource.data.text.size() <= 500;
-         allow delete: if request.auth != null
-           && request.auth.uid != null
-           && request.auth.uid == resource.data.userId;
-       }
-
-       // Users: can only edit own profile
+       // Users collection - handle account creation and profile access
        match /users/{userId} {
+         // Anyone authenticated can read user profiles
          allow read: if request.auth != null;
-         allow write: if request.auth != null
-           && request.auth.uid == userId
-           && request.auth.uid != null;
+         
+         // Users can create their own profile during signup OR update their existing profile
+         allow create: if request.auth != null && 
+                          request.auth.uid == userId &&
+                          request.resource.data.username is string &&
+                          request.resource.data.phoneNumber is string &&
+                          request.resource.data.email is string;
+                          
+         allow update: if request.auth != null && 
+                          request.auth.uid == userId;
        }
-
-       // Reports: authenticated users can create, admins can read
+       
+       // Messages collection - comprehensive message handling
+       match /messages/{messageId} {
+         // Anyone authenticated can read messages
+         allow read: if request.auth != null;
+         
+         // Users can create messages with proper validation
+         allow create: if request.auth != null && 
+                          request.auth.uid == request.resource.data.userId &&
+                          request.resource.data.text is string &&
+                          request.resource.data.text.size() >= 1 &&
+                          request.resource.data.text.size() <= 500 &&
+                          request.resource.data.username is string &&
+                          request.resource.data.userId is string &&
+                          request.resource.data.timestamp != null;
+         
+         // Any authenticated user can delete any message
+         allow delete: if request.auth != null;
+         
+         // No updating messages (messages should be immutable once sent)
+         allow update: if false;
+       }
+       
+       // Reports collection - for reporting inappropriate content
        match /reports/{reportId} {
-         allow create: if request.auth != null
-           && request.auth.uid != null;
-         allow read, update, delete: if false; // Admin only
+         // Users can create reports
+         allow create: if request.auth != null &&
+                          request.auth.uid == request.resource.data.reportedBy &&
+                          request.resource.data.messageId is string &&
+                          request.resource.data.reason is string;
+         
+         // Only admins can read/manage reports (set to false for now)
+         allow read, update, delete: if false;
        }
      }
    }
