@@ -9,7 +9,7 @@ import {
 	Alert,
 	ActivityIndicator,
 } from "react-native";
-import { updateProfile } from "firebase/auth";
+import { updateProfile, updatePassword } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 import { useAuth } from "../contexts/AuthContext";
 import { db } from "../config/firebase";
@@ -18,6 +18,9 @@ import { Ionicons } from "@expo/vector-icons";
 export default function ProfileScreen({ navigation }: { navigation: any }) {
 	const { user, firebaseUser, logout } = useAuth();
 	const [username, setUsername] = useState(user?.username || "");
+	const [currentPassword, setCurrentPassword] = useState("");
+	const [newPassword, setNewPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
 	const [loading, setLoading] = useState(false);
 
 	const updateUsername = async () => {
@@ -49,6 +52,40 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 		} catch (error) {
 			console.error("Error updating username:", error);
 			Alert.alert("Error", "Failed to update username");
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const updateUserPassword = async () => {
+		if (!newPassword || newPassword.length < 6) {
+			Alert.alert("Error", "New password must be at least 6 characters");
+			return;
+		}
+		if (newPassword !== confirmPassword) {
+			Alert.alert("Error", "Passwords do not match");
+			return;
+		}
+
+		setLoading(true);
+		try {
+			if (firebaseUser) {
+				await updatePassword(firebaseUser, newPassword);
+				Alert.alert("Success", "Password updated successfully");
+				setCurrentPassword("");
+				setNewPassword("");
+				setConfirmPassword("");
+			}
+		} catch (error: any) {
+			console.error("Error updating password:", error);
+			if (error.code === "auth/requires-recent-login") {
+				Alert.alert(
+					"Authentication Required",
+					"Please log out and log back in before changing your password"
+				);
+			} else {
+				Alert.alert("Error", "Failed to update password");
+			}
 		} finally {
 			setLoading(false);
 		}
@@ -106,7 +143,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 						{maskPhoneNumber(user?.phoneNumber || "")}
 					</Text>
 					<Text style={styles.phoneNote}>
-						To change your phone number, please contact support
+						Phone number cannot be changed after registration
 					</Text>
 
 					<Text style={styles.label}>Username</Text>
@@ -120,7 +157,11 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 						maxLength={30}
 					/>
 					<TouchableOpacity
-						style={[styles.button, styles.primaryButton]}
+						style={[
+							styles.button,
+							styles.primaryButton,
+							(loading || username === user?.username) && styles.buttonDisabled,
+						]}
 						onPress={updateUsername}
 						disabled={loading || username === user?.username}
 					>
@@ -128,6 +169,49 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 							<ActivityIndicator color="white" />
 						) : (
 							<Text style={styles.buttonText}>Update Username</Text>
+						)}
+					</TouchableOpacity>
+				</View>
+
+				<View style={styles.section}>
+					<Text style={styles.sectionTitle}>Change Password</Text>
+
+					<Text style={styles.label}>New Password</Text>
+					<TextInput
+						style={styles.input}
+						value={newPassword}
+						onChangeText={setNewPassword}
+						placeholder="Enter new password"
+						secureTextEntry
+						editable={!loading}
+					/>
+
+					<Text style={styles.label}>Confirm New Password</Text>
+					<TextInput
+						style={styles.input}
+						value={confirmPassword}
+						onChangeText={setConfirmPassword}
+						placeholder="Confirm new password"
+						secureTextEntry
+						editable={!loading}
+					/>
+
+					<TouchableOpacity
+						style={[
+							styles.button,
+							styles.primaryButton,
+							(loading || !newPassword || newPassword !== confirmPassword) &&
+								styles.buttonDisabled,
+						]}
+						onPress={updateUserPassword}
+						disabled={
+							loading || !newPassword || newPassword !== confirmPassword
+						}
+					>
+						{loading ? (
+							<ActivityIndicator color="white" />
+						) : (
+							<Text style={styles.buttonText}>Update Password</Text>
 						)}
 					</TouchableOpacity>
 				</View>
@@ -269,6 +353,9 @@ const styles = StyleSheet.create({
 	},
 	primaryButton: {
 		backgroundColor: "#007AFF",
+	},
+	buttonDisabled: {
+		backgroundColor: "#ccc",
 	},
 	dangerButton: {
 		backgroundColor: "transparent",

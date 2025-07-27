@@ -12,44 +12,22 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
 
-interface RouteParams {
-	verificationId: string;
-	phoneNumber: string;
-	username: string;
-}
-
-interface PhoneVerificationScreenProps {
-	route: {
-		params: RouteParams;
-	};
-	navigation: {
-		goBack: () => void;
-		navigate: (screen: string, params?: any) => void;
-	};
-}
-
-export default function PhoneVerificationScreen({
-	route,
-	navigation,
-}: PhoneVerificationScreenProps) {
-	const { verificationId, phoneNumber, username } = route.params;
-	const { verifyCode, sendVerificationCode } = useAuth();
+export default function PhoneVerificationScreen({ route, navigation }: any) {
+	const { verificationId, phoneNumber, username, password } = route.params;
+	const { verifyCode } = useAuth();
 
 	const [code, setCode] = useState("");
 	const [verifying, setVerifying] = useState(false);
-	const [resending, setResending] = useState(false);
 	const [timer, setTimer] = useState(60);
 	const [canResend, setCanResend] = useState(false);
 
 	const codeInputRef = useRef<TextInput>(null);
 
 	useEffect(() => {
-		// Auto-focus the input
 		setTimeout(() => {
 			codeInputRef.current?.focus();
 		}, 500);
 
-		// Start countdown timer
 		const interval = setInterval(() => {
 			setTimer((prev) => {
 				if (prev <= 1) {
@@ -65,18 +43,13 @@ export default function PhoneVerificationScreen({
 	}, []);
 
 	const formatCode = (text: string) => {
-		// Only allow digits and limit to 6 characters
 		const digits = text.replace(/\D/g, "").slice(0, 6);
-
-		// Add spaces for better readability
 		return digits.replace(/(\d{3})(\d{1,3})/, "$1 $2");
 	};
 
 	const handleCodeChange = (text: string) => {
 		const formatted = formatCode(text);
 		setCode(formatted);
-
-		// Auto-verify when 6 digits are entered
 		const digits = text.replace(/\D/g, "");
 		if (digits.length === 6) {
 			handleVerifyCode(digits);
@@ -93,17 +66,22 @@ export default function PhoneVerificationScreen({
 
 		setVerifying(true);
 		try {
+			console.log("Verifying code:", verificationCode);
+			console.log("Creating account for:", username);
+
 			const result = await verifyCode(
 				verificationId,
 				verificationCode,
-				username
+				username,
+				phoneNumber,
+				password
 			);
 
 			if (!result.success) {
 				Alert.alert("Error", result.error || "Invalid verification code");
-				setCode(""); // Clear the code on error
+				setCode("");
 			}
-			// If successful, the auth state will update and navigate automatically
+			// If successful, the AuthContext will automatically navigate to the main app
 		} catch (error) {
 			Alert.alert("Error", "Verification failed. Please try again.");
 			setCode("");
@@ -112,43 +90,18 @@ export default function PhoneVerificationScreen({
 		}
 	};
 
-	const handleResendCode = async () => {
-		setResending(true);
-		try {
-			const result = await sendVerificationCode(phoneNumber);
-
-			if (result.success) {
-				Alert.alert(
-					"Code Sent",
-					"A new verification code has been sent to your phone."
-				);
-				setTimer(60);
-				setCanResend(false);
-				setCode("");
-
-				// Restart timer
-				const interval = setInterval(() => {
-					setTimer((prev) => {
-						if (prev <= 1) {
-							setCanResend(true);
-							clearInterval(interval);
-							return 0;
-						}
-						return prev - 1;
-					});
-				}, 1000);
-			} else {
-				Alert.alert("Error", result.error || "Failed to resend code");
-			}
-		} catch (error) {
-			Alert.alert("Error", "Failed to resend verification code");
-		} finally {
-			setResending(false);
-		}
+	const handleResendCode = () => {
+		Alert.alert(
+			"Resend Code",
+			"To resend the verification code, please go back and try signing up again.",
+			[
+				{ text: "Cancel", style: "cancel" },
+				{ text: "Go Back", onPress: () => navigation.goBack() },
+			]
+		);
 	};
 
 	const maskPhoneNumber = (phone: string) => {
-		// Show only last 4 digits: +1 (***) ***-1234
 		const cleaned = phone.replace(/\D/g, "");
 		if (cleaned.length >= 10) {
 			const lastFour = cleaned.slice(-4);
@@ -178,24 +131,29 @@ export default function PhoneVerificationScreen({
 					/>
 				</View>
 
-				<Text style={styles.title}>Enter Verification Code</Text>
+				<Text style={styles.title}>Verify Your Phone</Text>
 				<Text style={styles.subtitle}>We sent a 6-digit code to</Text>
 				<Text style={styles.phoneNumber}>{maskPhoneNumber(phoneNumber)}</Text>
+
+				<View style={styles.accountInfo}>
+					<Text style={styles.accountText}>
+						Creating account for:{" "}
+						<Text style={styles.username}>{username}</Text>
+					</Text>
+				</View>
 
 				<View style={styles.codeContainer}>
 					<TextInput
 						ref={codeInputRef}
-						style={styles.codeInput}
+						style={[styles.codeInput, { fontSize: 24, letterSpacing: 2 }]}
 						value={code}
 						onChangeText={handleCodeChange}
 						placeholder="000 000"
 						placeholderTextColor="#ccc"
 						keyboardType="number-pad"
-						maxLength={7} // 6 digits + 1 space
+						maxLength={7}
 						editable={!verifying}
 						textAlign="center"
-						fontSize={24}
-						letterSpacing={2}
 					/>
 				</View>
 
@@ -205,7 +163,7 @@ export default function PhoneVerificationScreen({
 							size="small"
 							color="#007AFF"
 						/>
-						<Text style={styles.verifyingText}>Verifying...</Text>
+						<Text style={styles.verifyingText}>Creating your account...</Text>
 					</View>
 				)}
 
@@ -214,33 +172,32 @@ export default function PhoneVerificationScreen({
 						<TouchableOpacity
 							style={styles.resendButton}
 							onPress={handleResendCode}
-							disabled={resending}
 						>
-							{resending ? (
-								<ActivityIndicator
-									size="small"
-									color="#007AFF"
-								/>
-							) : (
-								<>
-									<Ionicons
-										name="refresh"
-										size={16}
-										color="#007AFF"
-									/>
-									<Text style={styles.resendText}>Resend Code</Text>
-								</>
-							)}
+							<Ionicons
+								name="refresh"
+								size={16}
+								color="#007AFF"
+							/>
+							<Text style={styles.resendText}>Didn't get the code?</Text>
 						</TouchableOpacity>
 					) : (
-						<Text style={styles.timerText}>Resend code in {timer}s</Text>
+						<Text style={styles.timerText}>Resend available in {timer}s</Text>
 					)}
 				</View>
 
 				<View style={styles.helpContainer}>
 					<Text style={styles.helpText}>
-						Didn't receive the code? Check that your phone has signal and try
-						resending.
+						📱 Check your messages for the verification code.
+						{"\n"}It may take a few moments to arrive.
+					</Text>
+				</View>
+
+				<View style={styles.infoContainer}>
+					<Text style={styles.infoText}>
+						🛡️ <Text style={styles.boldText}>Security:</Text> This one-time
+						verification confirms your phone number ownership.
+						{"\n"}After this, you'll only need your username and password to
+						login.
 					</Text>
 				</View>
 			</View>
@@ -284,7 +241,24 @@ const styles = StyleSheet.create({
 		fontWeight: "600",
 		textAlign: "center",
 		color: "#007AFF",
-		marginBottom: 40,
+		marginBottom: 20,
+	},
+	accountInfo: {
+		backgroundColor: "#e3f2fd",
+		padding: 15,
+		borderRadius: 8,
+		marginBottom: 30,
+		borderLeftWidth: 4,
+		borderLeftColor: "#2196f3",
+	},
+	accountText: {
+		fontSize: 14,
+		color: "#1565c0",
+		textAlign: "center",
+	},
+	username: {
+		fontWeight: "600",
+		color: "#0d47a1",
 	},
 	codeContainer: {
 		marginBottom: 30,
@@ -312,7 +286,7 @@ const styles = StyleSheet.create({
 	},
 	resendContainer: {
 		alignItems: "center",
-		marginBottom: 30,
+		marginBottom: 20,
 	},
 	resendButton: {
 		flexDirection: "row",
@@ -332,13 +306,30 @@ const styles = StyleSheet.create({
 	},
 	helpContainer: {
 		paddingTop: 20,
+		paddingBottom: 15,
 		borderTopWidth: 1,
 		borderTopColor: "#e0e0e0",
 	},
 	helpText: {
 		fontSize: 12,
 		textAlign: "center",
-		color: "#999",
+		color: "#666",
 		lineHeight: 16,
+	},
+	infoContainer: {
+		padding: 15,
+		backgroundColor: "#e8f5e8",
+		borderRadius: 8,
+		borderLeftWidth: 4,
+		borderLeftColor: "#4CAF50",
+	},
+	infoText: {
+		fontSize: 12,
+		color: "#2E7D32",
+		textAlign: "center",
+		lineHeight: 16,
+	},
+	boldText: {
+		fontWeight: "600",
 	},
 });
