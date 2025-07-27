@@ -21,6 +21,7 @@ import {
 	AccessibilityInfo,
 	TouchableWithoutFeedback,
 	Keyboard,
+	KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -410,112 +411,118 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 	return (
 		<SafeAreaView
 			style={styles.container}
-			edges={["top"]}
+			edges={["top", "bottom"]}
 		>
-			{/* Header */}
-			<View style={styles.header}>
-				<TouchableOpacity
-					onPress={() => navigation.navigate("Profile")}
-					style={styles.profileButton}
-					accessibilityRole="button"
-					accessibilityLabel="View profile"
-				>
-					<View style={styles.avatar}>
-						<Text style={styles.avatarText}>
-							{user?.username?.charAt(0).toUpperCase()}
-						</Text>
-					</View>
-					<View>
-						<Text style={styles.headerTitle}>Zeitgeist</Text>
-						<Text style={styles.headerSubtitle}>
-							{isConnected ? `Welcome, ${user?.username}` : "Offline"}
-						</Text>
-					</View>
-				</TouchableOpacity>
-				<TouchableOpacity
-					onPress={handleLogout}
-					style={styles.logoutButton}
-					accessibilityRole="button"
-					accessibilityLabel="Logout"
-					accessibilityHint="Logout from your account"
-				>
-					<Ionicons
-						name="log-out-outline"
-						size={24}
-						color="#FF3B30"
-					/>
-				</TouchableOpacity>
-			</View>
-
-			{/* Messages Container */}
-			<View style={styles.messagesContainer}>
-				{messages.length === 0 ? (
-					<TouchableWithoutFeedback onPress={dismissKeyboard}>
-						<View style={styles.emptyStateContainer}>
-							<EmptyState />
-						</View>
-					</TouchableWithoutFeedback>
-				) : (
-					<TouchableWithoutFeedback onPress={dismissKeyboard}>
-						<FlatList
-							ref={flatListRef}
-							data={messages}
-							renderItem={renderMessage}
-							keyExtractor={keyExtractor}
-							contentContainerStyle={styles.flatListContent}
-							showsVerticalScrollIndicator={false}
-							onScroll={handleScroll}
-							scrollEventThrottle={16}
-							removeClippedSubviews={true}
-							initialNumToRender={20}
-							maxToRenderPerBatch={10}
-							windowSize={21}
-							getItemLayout={undefined}
-							refreshControl={
-								<RefreshControl
-									refreshing={refreshing}
-									onRefresh={handleRefresh}
-									colors={["#007AFF"]}
-									tintColor="#007AFF"
-								/>
-							}
-							onContentSizeChange={() => {
-								if (isNearBottom) {
-									scrollToBottom(false);
-								}
-							}}
-						/>
-					</TouchableWithoutFeedback>
-				)}
-
-				{/* Scroll to bottom button */}
-				{!isNearBottom && (
+			<KeyboardAvoidingView
+				style={styles.keyboardAvoidingView}
+				behavior={Platform.OS === "ios" ? "padding" : "height"}
+				keyboardVerticalOffset={0}
+			>
+				{/* Header */}
+				<View style={styles.header}>
 					<TouchableOpacity
-						style={styles.scrollToBottomButton}
-						onPress={() => scrollToBottom(false, true)}
+						onPress={() => navigation.navigate("Profile")}
+						style={styles.profileButton}
 						accessibilityRole="button"
-						accessibilityLabel="Scroll to bottom"
+						accessibilityLabel="View profile"
+					>
+						<View style={styles.avatar}>
+							<Text style={styles.avatarText}>
+								{user?.username?.charAt(0).toUpperCase()}
+							</Text>
+						</View>
+						<View>
+							<Text style={styles.headerTitle}>Zeitgeist</Text>
+							<Text style={styles.headerSubtitle}>
+								{isConnected ? `Welcome, ${user?.username}` : "Offline"}
+							</Text>
+						</View>
+					</TouchableOpacity>
+					<TouchableOpacity
+						onPress={handleLogout}
+						style={styles.logoutButton}
+						accessibilityRole="button"
+						accessibilityLabel="Logout"
+						accessibilityHint="Logout from your account"
 					>
 						<Ionicons
-							name="chevron-down"
-							size={20}
-							color="white"
+							name="log-out-outline"
+							size={24}
+							color="#FF3B30"
 						/>
 					</TouchableOpacity>
-				)}
-			</View>
+				</View>
 
-			{/* Message Input */}
-			<MessageInput
-				value={newMessage}
-				onChangeText={setNewMessage}
-				onSend={sendMessage}
-				sending={sending}
-				isConnected={isConnected}
-				characterCount={characterCount}
-				ref={messageInputRef}
-				onFocus={handleInputFocus}
-			/>
+				{/* Messages Container */}
+				<View style={styles.messagesContainer}>
+					{messages.length === 0 ? (
+						<TouchableWithoutFeedback onPress={dismissKeyboard}>
+							<View style={styles.emptyStateContainer}>
+								<EmptyState />
+							</View>
+						</TouchableWithoutFeedback>
+					) : (
+						<TouchableWithoutFeedback onPress={dismissKeyboard}>
+							<FlatList
+								ref={flatListRef}
+								data={messages}
+								renderItem={renderMessage}
+								keyExtractor={keyExtractor}
+								contentContainerStyle={styles.flatListContent}
+								showsVerticalScrollIndicator={false}
+								onScroll={handleScroll}
+								scrollEventThrottle={16}
+								removeClippedSubviews={true}
+								initialNumToRender={20}
+								maxToRenderPerBatch={10}
+								windowSize={21}
+								getItemLayout={undefined}
+								refreshControl={
+									<RefreshControl
+										refreshing={refreshing}
+										onRefresh={handleRefresh}
+										colors={["#007AFF"]}
+										tintColor="#007AFF"
+									/>
+								}
+								onContentSizeChange={() => {
+									if (isNearBottom) {
+										scrollToBottom(false);
+									}
+								}}
+							/>
+						</TouchableWithoutFeedback>
+					)}
+
+					{/* Scroll to bottom button */}
+					{!isNearBottom && (
+						<TouchableOpacity
+							style={styles.scrollToBottomButton}
+							onPress={() => scrollToBottom(false, true)}
+							accessibilityRole="button"
+							accessibilityLabel="Scroll to bottom"
+						>
+							<Ionicons
+								name="chevron-down"
+								size={20}
+								color="white"
+							/>
+						</TouchableOpacity>
+					)}
+				</View>
+
+				{/* Message Input */}
+				<MessageInput
+					value={newMessage}
+					onChangeText={setNewMessage}
+					onSend={sendMessage}
+					sending={sending}
+					isConnected={isConnected}
+					characterCount={characterCount}
+					ref={messageInputRef}
+					onFocus={handleInputFocus}
+				/>
+			</KeyboardAvoidingView>
 
 			{/* Message Actions Modal */}
 			<Modal
@@ -817,7 +824,7 @@ const styles = StyleSheet.create({
 	flatListContent: {
 		paddingHorizontal: 15,
 		paddingTop: 15,
-		paddingBottom: 15,
+		paddingBottom: 25,
 		flexGrow: 1,
 	},
 	messageContainer: {
@@ -891,7 +898,7 @@ const styles = StyleSheet.create({
 	},
 	scrollToBottomButton: {
 		position: "absolute",
-		bottom: 20,
+		bottom: Platform.OS === "ios" ? 85 : 90,
 		right: 20,
 		backgroundColor: "#007AFF",
 		width: 40,
@@ -910,8 +917,9 @@ const styles = StyleSheet.create({
 		borderTopWidth: 1,
 		borderTopColor: "#e0e0e0",
 		paddingHorizontal: 15,
-		paddingTop: 10,
-		paddingBottom: Platform.OS === "ios" ? 0 : 10,
+		paddingTop: 12,
+		paddingBottom: Platform.OS === "ios" ? 20 : 15,
+		marginBottom: Platform.OS === "ios" ? 0 : 10,
 		elevation: 8,
 		shadowColor: "#000",
 		shadowOffset: { width: 0, height: -2 },
@@ -934,17 +942,17 @@ const styles = StyleSheet.create({
 		borderColor: "#ddd",
 		borderRadius: 20,
 		paddingHorizontal: 15,
-		paddingVertical: 10,
+		paddingVertical: 12,
 		maxHeight: 100,
 		fontSize: 16,
 		backgroundColor: "#f9f9f9",
-		minHeight: 40,
+		minHeight: 42,
 	},
 	sendButton: {
 		backgroundColor: "#007AFF",
-		width: 40,
-		height: 40,
-		borderRadius: 20,
+		width: 42,
+		height: 42,
+		borderRadius: 21,
 		justifyContent: "center",
 		alignItems: "center",
 	},
@@ -954,5 +962,8 @@ const styles = StyleSheet.create({
 	inputContainer: {
 		flex: 1,
 		marginRight: 10,
+	},
+	keyboardAvoidingView: {
+		flex: 1,
 	},
 });
