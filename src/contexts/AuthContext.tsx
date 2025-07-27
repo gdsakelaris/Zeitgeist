@@ -199,6 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				email,
 				createdAt: new Date(),
 				phoneVerified: true,
+				userId: firebaseUser.uid, // Ensure userId is included
 			};
 
 			await setDoc(doc(db, "users", firebaseUser.uid), userData);
