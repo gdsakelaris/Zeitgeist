@@ -1,96 +1,18 @@
-import React, { useState } from "react";
+import React from "react";
 import {
 	View,
 	Text,
-	TextInput,
 	TouchableOpacity,
 	StyleSheet,
 	SafeAreaView,
 	Alert,
-	ActivityIndicator,
 	ScrollView,
 } from "react-native";
-import { updateProfile, updatePassword } from "firebase/auth";
-import { doc, updateDoc } from "firebase/firestore";
 import { useAuth } from "../contexts/AuthContext";
-import { db } from "../config/firebase";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function ProfileScreen({ navigation }: { navigation: any }) {
-	const { user, firebaseUser, logout } = useAuth();
-	const [username, setUsername] = useState(user?.username || "");
-	const [currentPassword, setCurrentPassword] = useState("");
-	const [newPassword, setNewPassword] = useState("");
-	const [confirmPassword, setConfirmPassword] = useState("");
-	const [loading, setLoading] = useState(false);
-
-	const updateUsername = async () => {
-		if (!username.trim() || username === user?.username) {
-			Alert.alert("Error", "Please enter a new username");
-			return;
-		}
-
-		if (username.trim().length < 2) {
-			Alert.alert("Error", "Username must be at least 2 characters");
-			return;
-		}
-
-		setLoading(true);
-		try {
-			// Update Firebase Auth display name
-			if (firebaseUser) {
-				await updateProfile(firebaseUser, { displayName: username });
-			}
-
-			// Update Firestore user document
-			if (user) {
-				await updateDoc(doc(db, "users", user.id), {
-					username: username.trim(),
-				});
-			}
-
-			Alert.alert("Success", "Username updated successfully");
-		} catch (error) {
-			console.error("Error updating username:", error);
-			Alert.alert("Error", "Failed to update username");
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	const updateUserPassword = async () => {
-		if (!newPassword || newPassword.length < 6) {
-			Alert.alert("Error", "New password must be at least 6 characters");
-			return;
-		}
-		if (newPassword !== confirmPassword) {
-			Alert.alert("Error", "Passwords do not match");
-			return;
-		}
-
-		setLoading(true);
-		try {
-			if (firebaseUser) {
-				await updatePassword(firebaseUser, newPassword);
-				Alert.alert("Success", "Password updated successfully");
-				setCurrentPassword("");
-				setNewPassword("");
-				setConfirmPassword("");
-			}
-		} catch (error: any) {
-			console.error("Error updating password:", error);
-			if (error.code === "auth/requires-recent-login") {
-				Alert.alert(
-					"Authentication Required",
-					"Please log out and log back in before changing your password"
-				);
-			} else {
-				Alert.alert("Error", "Failed to update password");
-			}
-		} finally {
-			setLoading(false);
-		}
-	};
+	const { user, logout } = useAuth();
 
 	const handleLogout = () => {
 		Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -119,7 +41,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 						color="#007AFF"
 					/>
 				</TouchableOpacity>
-				<Text style={styles.headerTitle}>Profile Settings</Text>
+				<Text style={styles.headerTitle}>Profile</Text>
 				<View style={{ width: 24 }} />
 			</View>
 
@@ -139,84 +61,18 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 				<View style={styles.section}>
 					<Text style={styles.sectionTitle}>Account Information</Text>
 
-					<Text style={styles.label}>Phone Number</Text>
-					<Text style={styles.phoneText}>
-						{maskPhoneNumber(user?.phoneNumber || "")}
-					</Text>
-					<Text style={styles.phoneNote}>
-						Phone number cannot be changed after registration
-					</Text>
+					<View style={styles.infoRow}>
+						<Text style={styles.label}>Username</Text>
+						<Text style={styles.value}>{user?.username}</Text>
+					</View>
 
-					<Text style={styles.label}>Username</Text>
-					<TextInput
-						style={styles.input}
-						value={username}
-						onChangeText={setUsername}
-						placeholder="Enter username"
-						autoCapitalize="none"
-						editable={!loading}
-						maxLength={30}
-					/>
-					<TouchableOpacity
-						style={[
-							styles.button,
-							styles.primaryButton,
-							(loading || username === user?.username) && styles.buttonDisabled,
-						]}
-						onPress={updateUsername}
-						disabled={loading || username === user?.username}
-					>
-						{loading ? (
-							<ActivityIndicator color="white" />
-						) : (
-							<Text style={styles.buttonText}>Update Username</Text>
-						)}
-					</TouchableOpacity>
+					<View style={styles.infoRow}>
+						<Text style={styles.label}>Phone Number</Text>
+						<Text style={styles.value}>
+							{maskPhoneNumber(user?.phoneNumber || "")}
+						</Text>
+					</View>
 				</View>
-
-				<View style={styles.section}>
-					<Text style={styles.sectionTitle}>Change Password</Text>
-
-					<Text style={styles.label}>New Password</Text>
-					<TextInput
-						style={styles.input}
-						value={newPassword}
-						onChangeText={setNewPassword}
-						placeholder="Enter new password"
-						secureTextEntry
-						editable={!loading}
-					/>
-
-					<Text style={styles.label}>Confirm New Password</Text>
-					<TextInput
-						style={styles.input}
-						value={confirmPassword}
-						onChangeText={setConfirmPassword}
-						placeholder="Confirm new password"
-						secureTextEntry
-						editable={!loading}
-					/>
-
-					<TouchableOpacity
-						style={[
-							styles.button,
-							styles.primaryButton,
-							(loading || !newPassword || newPassword !== confirmPassword) &&
-								styles.buttonDisabled,
-						]}
-						onPress={updateUserPassword}
-						disabled={
-							loading || !newPassword || newPassword !== confirmPassword
-						}
-					>
-						{loading ? (
-							<ActivityIndicator color="white" />
-						) : (
-							<Text style={styles.buttonText}>Update Password</Text>
-						)}
-					</TouchableOpacity>
-				</View>
-
 				<View style={styles.section}>
 					<Text style={styles.sectionTitle}>Account Actions</Text>
 					<TouchableOpacity
@@ -317,32 +173,26 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		fontWeight: "500",
 		color: "#666",
-		marginBottom: 5,
 	},
-	phoneText: {
+	infoRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		marginBottom: 15,
+		paddingVertical: 5,
+	},
+	value: {
 		fontSize: 16,
 		color: "#333",
-		paddingVertical: 12,
-		paddingHorizontal: 15,
-		backgroundColor: "#f9f9f9",
-		borderRadius: 8,
-		marginBottom: 5,
+		fontWeight: "500",
 	},
-	phoneNote: {
+	infoNote: {
 		fontSize: 12,
 		color: "#999",
-		marginBottom: 15,
+		marginTop: 10,
 		fontStyle: "italic",
-	},
-	input: {
-		borderWidth: 1,
-		borderColor: "#ddd",
-		borderRadius: 8,
-		paddingVertical: 12,
-		paddingHorizontal: 15,
-		fontSize: 16,
-		marginBottom: 15,
-		backgroundColor: "white",
+		textAlign: "center",
+		paddingHorizontal: 20,
 	},
 	button: {
 		flexDirection: "row",
@@ -351,12 +201,6 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		justifyContent: "center",
 		minHeight: 44,
-	},
-	primaryButton: {
-		backgroundColor: "#007AFF",
-	},
-	buttonDisabled: {
-		backgroundColor: "#ccc",
 	},
 	dangerButton: {
 		backgroundColor: "transparent",

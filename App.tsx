@@ -9,6 +9,8 @@ import ProfileScreen from "./src/screens/ProfileScreen";
 import PhoneVerificationScreen from "./src/screens/PhoneVerificationScreen";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View, StyleSheet } from "react-native";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
+import { NetworkProvider } from "./src/components/NetworkProvider";
 
 const Stack = createStackNavigator();
 
@@ -70,11 +72,15 @@ const styles = StyleSheet.create({
 
 export default function App() {
 	return (
-		<AuthProvider>
-			<StatusBar style="auto" />
-			<SafeAreaProvider>
-				<AppNavigator />
-			</SafeAreaProvider>
-		</AuthProvider>
+		<ErrorBoundary>
+			<NetworkProvider>
+				<AuthProvider>
+					<StatusBar style="auto" />
+					<SafeAreaProvider>
+						<AppNavigator />
+					</SafeAreaProvider>
+				</AuthProvider>
+			</NetworkProvider>
+		</ErrorBoundary>
 	);
 }

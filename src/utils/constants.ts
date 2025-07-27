@@ -27,6 +27,10 @@ export const VALIDATION = {
 		MIN_LENGTH: 10,
 		MAX_LENGTH: 15,
 	},
+	MESSAGE: {
+		MIN_LENGTH: 1,
+		MAX_LENGTH: 500,
+	},
 	VERIFICATION_CODE: {
 		LENGTH: 6,
 		EXPIRY_TIME: 300, // 5 minutes
