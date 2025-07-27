@@ -351,11 +351,8 @@ export default function ChatScreen({ navigation }: ChatScreenProps) {
 		({ item, index }: { item: Message; index: number }) => {
 			const isOwnMessage = item.userId === user?.id;
 			const isLastMessage = index === messages.length - 1;
-			// Show username on all own messages, and for other users when they're first in a sequence
-			const showUsername =
-				isOwnMessage ||
-				(!isOwnMessage &&
-					(index === 0 || messages[index - 1]?.userId !== item.userId));
+			// Show username on every message
+			const showUsername = true;
 
 			return (
 				<MessageItem
